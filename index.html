@@ -49,6 +49,62 @@
         .text-shadow-lg {
             text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
         }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 15px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            color: white;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            background: rgba(0,0,0,0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .close:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        
+        .zoomable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .zoomable:hover {
+            transform: scale(1.05);
+        }
     </style>
 </head>
 <body class="bg-gray-50 font-inter">
@@ -67,6 +123,25 @@
     <!-- Navigation -->
     <nav class="bg-white shadow-lg sticky top-0 z-50">
         <div class="container mx-auto px-6">
+            <!-- Search Bar -->
+            <div class="flex justify-center py-4 border-b border-gray-200">
+                <div class="relative w-full max-w-md">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Pesquisar drinks..." 
+                        class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        onkeyup="searchDrinks()"
+                    >
+                </div>
+            </div>
+            
+            <!-- Category Buttons -->
             <div class="flex flex-wrap justify-center gap-2 py-4">
                 <button onclick="showCategory('all')" class="category-btn active px-6 py-3 rounded-full font-medium text-sm">Todos</button>
                 <button onclick="showCategory('caipirinhas')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Caipirinhas</button>
@@ -86,8 +161,8 @@
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Caipiroska -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
-                    <div class="h-48 w-full overflow-hidden cursor-pointer" onclick="openImageModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhSZcVbiEXcZlHOM7_JJbTCVxMgaqLNEAxmPBgMnwKU2mIW_XRHrDNfSP4xjZwvvTgDQeD4iEVD06rNTuFn6HH2NkZpUkzJ-_hmXxjnSCuhCbWJeC17RzyAKEL8UQRd3iSlFgJYAxOpIDvIxHuppFHKp0Zbj_phdanTXf2tPsOwHRVF1aJ12RVrCWAMLxeq" alt="Caipiroska com frutas frescas" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhSZcVbiEXcZlHOM7_JJbTCVxMgaqLNEAxmPBgMnwKU2mIW_XRHrDNfSP4xjZwvvTgDQeD4iEVD06rNTuFn6HH2NkZpUkzJ-_hmXxjnSCuhCbWJeC17RzyAKEL8UQRd3iSlFgJYAxOpIDvIxHuppFHKp0Zbj_phdanTXf2tPsOwHRVF1aJ12RVrCWAMLxeq" alt="Caipiroska com frutas frescas" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -106,8 +181,8 @@
 
                 <!-- Caipirinha -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
-                    <div class="h-48 w-full overflow-hidden cursor-pointer" onclick="openImageModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgehJaelP6GEhPgL3k8HF4Xsmgle-5CnJX9jbKSedMn2RyBkP1N0oS1qoyO_A2aEycjXYsKVzSFo8ncw1AGRFKKzmOjOzd-DoIZb_NnnuXB4-ydymZcw-vGYz1bFztJ8rvqMJOBFqcEPoSpGHc0dnXmXyoMMW-UL5ZXXX9iQGJSQM9CsUf7U8PrgzLqnyVy=s16000" alt="Caipirinha tradicional brasileira" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgehJaelP6GEhPgL3k8HF4Xsmgle-5CnJX9jbKSedMn2RyBkP1N0oS1qoyO_A2aEycjXYsKVzSFo8ncw1AGRFKKzmOjOzd-DoIZb_NnnuXB4-ydymZcw-vGYz1bFztJ8rvqMJOBFqcEPoSpGHc0dnXmXyoMMW-UL5ZXXX9iQGJSQM9CsUf7U8PrgzLqnyVy=s16000" alt="Caipirinha tradicional brasileira" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -126,6 +201,9 @@
 
                 <!-- Nevadas -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhQd639RhDSrZJep9Rsv_3JDkFh8-czzYiPNgDDQbLJlLCFaZBxDMVImmrnPks1zV6arxWm0nyHwHt-HdQd_omkCLAvjS7TlFTmxa8xABmK2oZSfbQzBkfCP83KhE3eyDCGKRLSL97WSkFBo8hUrYQ46v0YSzwiGX6Yo0f0c06KeF8XkeZ_CGAo6-k0pRir" alt="Nevada cremosa" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Nevadas</h3>
@@ -150,6 +228,9 @@
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Lambedo de Voinha -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgaA65d-tqHAMltxP7c-ntMvddYZKS8CloTiuqoCvolNAuTs5sKgEwkX29z3PR4ctkXuD1cf8mMnpHrdky6bEGHAmMRYXkWKecZiVZNotQUD_Wa3WKbBfV8NlHuaGdADr58bWzgi5KUAX6wbWDaoWFCLUZHyCx61lMVSggZ-pxWsEdPTLsMxNL4yBvFRZiK" alt="Lambedo de Voinha especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Lambedo de Voinha</h3>
@@ -166,6 +247,9 @@
 
                 <!-- Mango Mule -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://resize.casapino.com.br/?u=https://cms-bomgourmet.s3.amazonaws.com/bomgourmet%2F2022%2F12%2F30151117%2FCaipirinha-de-Manga-com-Pimenta-quermesse.jpg&w=480" alt="Mango Mule tropical" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Mango Mule</h3>
@@ -182,6 +266,9 @@
 
                 <!-- Dona Lilê -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEiAuVYe3khR488CRj62jXGh8KhsA_7gGPOo-L53Q61ClAHs5Nt0BkOmu9c37mnaSM04as0WlO-ZaEE1A104I3TISRFdo8OmmTNI0TOSCnhNNHiP8sl5AcxiJQDlRO1tn995IxH3DSkzQvwA8gKPoyJ1tCX21tFwdCCh9RVhAR_JodLoQo9Rf3-l2vo1dz2R" alt="Dona Lilê infusão especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Dona Lilê</h3>
@@ -198,6 +285,9 @@
 
                 <!-- Aperol Spritz -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://www.libelconstrutora.com.br/with/wp-content/uploads/2018/03/aperol-zcafe.jpg" alt="Aperol Spritz italiano" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Aperol Spritz</h3>
@@ -214,6 +304,9 @@
 
                 <!-- In Love -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://conteudo.imguol.com.br/c/entretenimento/9e/2023/01/30/sakerinha-de-limao-siciliano-e-manjericao-._v2_300x400.jpg" alt="In Love com manjericão" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">In Love</h3>
@@ -229,6 +322,9 @@
 
                 <!-- Gengibre -->
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://s2.glbimg.com/Ouy28yGrD_5DqsXAbJ0ieFXzUWQ=/smart/e.glbimg.com/og/ed/f/original/2019/08/08/receita-drink-falafada_2.jpg" alt="Drink de gengibre especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Gengibre</h3>
@@ -242,11 +338,74 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Charmosa -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgfxpJmsxRWfs6yZT5yPxUJgtdRWhCkzR54j6x8YemDDh__dyRkpZl3DfAzzM7-m3mEpRPGHYuSr-vwyS_XfnB4ulUgRFbYuG7yRJyy-I6lMZ8pCUfVk7lV05HKikBuacCh81G-Q51VyGh_qycD-amS8Pz3Mm6kDexIlYQ73bJsJPfbD128iF0wVJuWECLt" alt="Charmosa elegante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Charmosa</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 26,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Drink elegante e sofisticado</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Frutas Vermelhas</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espumante</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mojito -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgiZX430pi3QpOTBFpCTYx9rJGIhN-Ym5CL3md7GvdUjuRwLq_cYmNaUvELPe_dKrz-6vkZAjch5nPhEcsPivj3L_bTxnyFJoysswmitVyitGVqY0yGUA23i-doh18BoBWHD5tf9gIDvTnmIvVp2o0v73qn7i-em4_0KN-Jm4IKjKCxxBYpJrxmtSzl5KIR" alt="Mojito refrescante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Mojito</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 24,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico cubano refrescante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Rum</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hortelã</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Limão</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Água com Gás</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Moscow Mule -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEi_dkXMZx3HW_xyBJu-J6NKrCZUuicGUKITmFPCGavpyCfC2RV98lAeSlAs68hNkrT2UsOoLGSRTxKZe2BN-YoaWH6zXH8HQMmBteP9565EqpcN6EfjU3hBqweUwCUQjspESgkKs3sQeM7q8Bmh2fAt4igKN-LG9yvgFFJExTXpk8X4hi4h93YAfFR0kYMY" alt="Moscow Mule" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Moscow Mule</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 29,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico americano picante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Gengibre</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Sumo de Limão</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Xarope de Açúcar</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espuma de Gengibre</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- Mais drinks especiais -->
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEghdFQ7Nn4Z1DLxTKnzm4X00AoxKpVdHkxjS_PbzLi8PP0EcWtQbNt5-_pP0YZJ6d81-l06c1_1PmvQB10M3nwoj2ssjb41nMqExIf-wNRp8nts-tfLo22ctXrDjzCwvzFUY4JRSA5Aovd9QTjt8-rm54xtpuGuxBYa93xgs-pzc7UaTaCrKdkzsVYY9o4s" alt="Cajuzada de Voinha" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Cajuzada de Voinha</h3>
@@ -262,6 +421,9 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgGISpvdEVamQv6mI8T-26pQhsnG4aZeD2aydMvLfwFRGBuOSzKPb67Gqeo3YmgOVv7qe5D2IiavkVWejT8qwzkwcBKbs5vIsOSyOW1IS7nTl3Xut6CoS3CTHN0Qc1VDAnw6iB7FFR_3DUfudDD56jxBlToD8vkNXT7ich_nd-DwiN2OqXG1UPGYv0vFe_h" alt="Gin Tônica clássico" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Gin Tônica</h3>
@@ -277,6 +439,9 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://canaldareceita.com.br/wp-content/uploads/2025/02/MARGARITA.jpg.webp" alt="Margarita mexicana tradicional" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Margarita</h3>
@@ -297,6 +462,9 @@
             <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Drinks Sem Álcool</h2>
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgDVvWr5zKwwyD_NM0uS6OCr5rAF-5ftA9m4XH66AatyL6cwoEstQQnyXbrUWYWqmQyLM44bZneZ7xDlhCkwJCEFqqalb8YZBwr3-Z9yHjBM-hDHcX7xVf2v-RgaMR_3-r9pzCxpOi5JpwovtVIURAmR-zANGkBRLw4Q_une3fh-G6BbsGxOFea2lEEUfg6" alt="Pink Limonade refrescante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Pink Limonade</h3>
@@ -312,6 +480,9 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://conteudo.imguol.com.br/c/entretenimento/65/2023/01/27/soda-italiana-de-maca-verde-._v2_300x400.jpg" alt="Soda Italiana de maçã verde" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Soda Italiana</h3>
@@ -327,6 +498,9 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://www.receiteria.com.br/wp-content/uploads/receitas-de-caipifruta.png" alt="Caipifruta refrescante sem álcool" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
                             <h3 class="font-playfair text-2xl font-semibold text-gray-800">Caipifruta</h3>
@@ -346,8 +520,8 @@
             <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Cervejas</h2>
             <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
-                    <div class="h-48 w-full overflow-hidden cursor-pointer" onclick="openImageModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="https://a-static.mlcdn.com.br/800x560/kit-6-canecas-de-chopp-tradicional-300ml-tipo-alema-hkn-decore-facil-shop/fldecorefacilmarilialtda/91061/d4ee83f93702057a9e258e3b9fd2853e.jpg" alt="Chopp Heineken gelado" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEguOWJIC2R7zbSl0om320Yt6bnCIdEN0N2m84o3Lq9GOsXLGmXfVVlbwMxqvNpSUJiLZ3jtc67OxV84SALkbm7OaXKYNBXbkEr0ESI-NW03tLowl2FI6P0GzpXJ7PODnJxcrQZ51r3hRIxvxiXNzoe5f3GcVFvkiqAjOKnXtzAXJt506x0qzVPLyVI-BnaE" alt="Chopp Heineken gelado" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -359,8 +533,8 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
-                    <div class="h-48 w-full overflow-hidden cursor-pointer" onclick="openImageModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="https://mercantilnovaera.vtexassets.com/arquivos/ids/217418-1200-auto?v=638540539872870000&width=1200&height=auto&aspect=true" alt="Cerveja Corona Extra" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://mercantilnovaera.vtexassets.com/arquivos/ids/217418-1200-auto?v=.00&width=1200&height=auto&aspect=true" alt="Cerveja Corona Extra" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -372,8 +546,8 @@
                 </div>
 
                 <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
-                    <div class="h-48 w-full overflow-hidden cursor-pointer" onclick="openImageModal(this.querySelector('img').src, this.querySelector('img').alt)">
-                        <img src="https://superprix.vteximg.com.br/arquivos/ids/226297-600-600/774170_4.jpg?v=637000000000000000" alt="Cerveja Heineken" class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://superprix.vteximg.com.br/arquivos/ids/226297-600-600/774170_4.jpg?v=637000000000000000" alt="Cerveja Heineken" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
                     </div>
                     <div class="p-6">
                         <div class="flex justify-between items-start mb-4">
@@ -481,14 +655,10 @@
         </section>
     </main>
 
-    <!-- Image Modal -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 hidden">
-        <div class="relative max-w-4xl max-h-full p-4">
-            <button onclick="closeImageModal()" class="absolute top-2 right-2 text-white text-4xl hover:text-gray-300 z-10 bg-black bg-opacity-50 rounded-full w-12 h-12 flex items-center justify-center">
-                ×
-            </button>
-            <img id="modalImage" src="" alt="" class="max-w-full max-h-full object-contain rounded-lg">
-        </div>
+    <!-- Modal para zoom das imagens -->
+    <div id="imageModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
     </div>
 
     <!-- Footer -->
@@ -533,35 +703,71 @@
             showCategory('all');
         });
 
-        // Image modal functions
-        function openImageModal(src, alt) {
+        // Search functionality
+        function searchDrinks() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const allCards = document.querySelectorAll('.card-hover');
+            
+            // If search is empty, show all cards
+            if (searchTerm === '') {
+                allCards.forEach(card => {
+                    card.style.display = 'block';
+                });
+                return;
+            }
+            
+            // Hide all cards first
+            allCards.forEach(card => {
+                card.style.display = 'none';
+            });
+            
+            // Show cards that match the search
+            allCards.forEach(card => {
+                const drinkName = card.querySelector('h3').textContent.toLowerCase();
+                const description = card.querySelector('p').textContent.toLowerCase();
+                const ingredients = Array.from(card.querySelectorAll('.ingredient-tag')).map(tag => tag.textContent.toLowerCase()).join(' ');
+                
+                if (drinkName.includes(searchTerm) || 
+                    description.includes(searchTerm) || 
+                    ingredients.includes(searchTerm)) {
+                    card.style.display = 'block';
+                }
+            });
+        }
+
+        // Funções para o modal de zoom das imagens
+        function openModal(img) {
             const modal = document.getElementById('imageModal');
-            const modalImage = document.getElementById('modalImage');
-            modalImage.src = src;
-            modalImage.alt = alt;
-            modal.classList.remove('hidden');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = img.src;
+            modalImg.alt = img.alt;
+            
+            // Previne scroll do body quando modal está aberto
             document.body.style.overflow = 'hidden';
         }
 
-        function closeImageModal() {
+        function closeModal() {
             const modal = document.getElementById('imageModal');
-            modal.classList.add('hidden');
+            modal.style.display = 'none';
+            
+            // Restaura scroll do body
             document.body.style.overflow = 'auto';
         }
 
-        // Close modal when clicking outside the image
+        // Fecha modal ao clicar fora da imagem
         document.getElementById('imageModal').addEventListener('click', function(e) {
             if (e.target === this) {
-                closeImageModal();
+                closeModal();
             }
         });
 
-        // Close modal with Escape key
+        // Fecha modal com tecla ESC
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
-                closeImageModal();
+                closeModal();
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97d1283f3658f632',t:'MTc1NzUzMDcxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ea70f381904f83',t:'MTc1Nzc5NTgzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
