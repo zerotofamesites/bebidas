@@ -715,23 +715,17 @@
                     🔄 Sincronizar com Servidor
                 </button>
                 
-                <button onclick="resetToOriginal()" class="w-full bg-yellow-500 text-white py-3 rounded-lg font-medium hover:bg-yellow-600">
-                    ↩️ Restaurar Original
-                </button>
-                
-                <button onclick="exportData()" class="w-full bg-purple-500 text-white py-3 rounded-lg font-medium hover:bg-purple-600">
-                    📤 Exportar Dados
-                </button>
+
             </div>
             
             <div class="mt-6 p-4 bg-blue-50 rounded-lg">
                 <p class="text-sm text-blue-800">
                     <strong>✨ Recursos Disponíveis:</strong><br>
-                    • Editar qualquer texto (títulos, descrições, preços)<br>
+                    • Editar qualquer texto da página<br>
                     • Trocar imagens (URLs)<br>
                     • Salvar automaticamente no Firebase<br>
                     • Destacar elementos editáveis<br>
-                    • Exportar/importar dados
+                    • Edição completa de drinks
                 </p>
             </div>
             
@@ -1135,9 +1129,9 @@
                 e.preventDefault();
                 e.stopPropagation();
                 
-                // Lista de elementos editáveis
+                // Lista de elementos editáveis (expandida para incluir mais elementos)
                 const editableElements = [
-                    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'DIV', 'BUTTON', 'A', 'LABEL'
+                    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'DIV', 'BUTTON', 'A', 'LABEL', 'LI', 'TD', 'TH', 'STRONG', 'EM', 'B', 'I'
                 ];
                 
                 // Verifica se é uma imagem
@@ -1152,30 +1146,53 @@
                     if (e.target.closest('#editPanel') || 
                         e.target.closest('#passwordModal') || 
                         e.target.closest('#editModal') ||
-                        e.target.closest('#imageModal')) {
+                        e.target.closest('#imageModal') ||
+                        e.target.classList.contains('edit-pencil')) {
                         return;
                     }
                     
-                    editTextElement(e.target);
-                    return;
+                    // Verifica se o elemento tem texto editável
+                    if (hasEditableText(e.target)) {
+                        editTextElement(e.target);
+                        return;
+                    }
                 }
                 
                 // Se clicou em um elemento filho, tenta encontrar o pai editável
                 let parent = e.target.parentElement;
-                while (parent && !editableElements.includes(parent.tagName)) {
-                    parent = parent.parentElement;
-                    if (parent && (parent.closest('#editPanel') || 
-                                  parent.closest('#passwordModal') || 
-                                  parent.closest('#editModal') ||
-                                  parent.closest('#imageModal'))) {
+                while (parent && parent !== document.body) {
+                    if (parent.closest('#editPanel') || 
+                        parent.closest('#passwordModal') || 
+                        parent.closest('#editModal') ||
+                        parent.closest('#imageModal') ||
+                        parent.classList.contains('edit-pencil')) {
                         return;
                     }
-                }
-                
-                if (parent && editableElements.includes(parent.tagName)) {
-                    editTextElement(parent);
+                    
+                    if (editableElements.includes(parent.tagName) && hasEditableText(parent)) {
+                        editTextElement(parent);
+                        return;
+                    }
+                    
+                    parent = parent.parentElement;
                 }
             });
+        }
+        
+        // Função para verificar se um elemento tem texto editável
+        function hasEditableText(element) {
+            // Ignora elementos vazios ou que só contêm outros elementos
+            const textContent = element.textContent.trim();
+            if (!textContent) return false;
+            
+            // Ignora elementos que são apenas containers (como divs com apenas outros elementos)
+            const hasOnlyChildElements = element.children.length > 0 && 
+                                       element.childNodes.length === element.children.length;
+            
+            // Permite edição se tem texto próprio ou é um elemento específico de texto
+            const textElements = ['H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'P', 'SPAN', 'BUTTON', 'A', 'LABEL', 'LI', 'STRONG', 'EM', 'B', 'I'];
+            
+            return textElements.includes(element.tagName) || !hasOnlyChildElements;
         }
 
         function removeEditListeners() {
@@ -1289,17 +1306,28 @@
                 currentEditElement.textContent = newValue;
             }
             
-            // Adiciona indicador visual de alteração
+            // Adiciona indicador visual de alteração suave
+            const originalBg = currentEditElement.style.backgroundColor;
             currentEditElement.style.backgroundColor = '#dcfce7';
-            currentEditElement.style.transition = 'background-color 0.3s ease';
-            setTimeout(() => {
-                currentEditElement.style.backgroundColor = '';
-            }, 2000);
+            currentEditElement.style.transition = 'background-color 0.5s ease';
+            
+            // Remove o destaque suavemente sem travar a página
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    currentEditElement.style.backgroundColor = originalBg;
+                    setTimeout(() => {
+                        currentEditElement.style.transition = '';
+                    }, 500);
+                }, 1500);
+            });
             
             // Atualiza estatísticas
             updateEditStats();
             
-            // Tenta salvar no Firebase (para elementos de drinks)
+            // Salva no localStorage para persistência local
+            saveToLocalStorage();
+            
+            // Tenta salvar no Firebase de forma assíncrona (não bloqueia a UI)
             const card = currentEditElement.closest('.card-hover');
             if (card) {
                 const drinkId = card.getAttribute('data-drink-id');
@@ -1319,21 +1347,64 @@
                     }
                     
                     if (elementType) {
-                        showNotification("💾 Salvando no servidor...", "info");
-                        const success = await saveEditToFirebase(elementType, drinkId, newValue, additionalData);
-                        
-                        if (success) {
-                            showNotification("✅ Salvo no servidor!", "success");
-                        } else {
-                            showNotification("⚠️ Salvo localmente (erro no servidor)", "error");
-                        }
+                        // Salva de forma assíncrona sem bloquear
+                        saveEditToFirebase(elementType, drinkId, newValue, additionalData)
+                            .then(success => {
+                                if (success) {
+                                    showNotification("✅ Salvo automaticamente!", "success");
+                                } else {
+                                    showNotification("⚠️ Salvo localmente", "info");
+                                }
+                            })
+                            .catch(() => {
+                                showNotification("⚠️ Salvo localmente", "info");
+                            });
                     }
                 }
             } else {
-                showNotification("✅ Alteração salva localmente!", "success");
+                // Para elementos que não são drinks, salva no localStorage
+                showNotification("✅ Texto atualizado!", "success");
             }
             
             closeEditModal();
+        }
+        
+        // Função para salvar no localStorage
+        function saveToLocalStorage() {
+            try {
+                const pageData = {
+                    timestamp: new Date().toISOString(),
+                    content: extractAllPageContent()
+                };
+                localStorage.setItem('pageEdits', JSON.stringify(pageData));
+            } catch (error) {
+                console.log('Erro ao salvar no localStorage:', error);
+            }
+        }
+        
+        // Função para extrair todo o conteúdo editável da página
+        function extractAllPageContent() {
+            const content = {};
+            const editableElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, li, strong, em, b, i');
+            
+            editableElements.forEach((el, index) => {
+                if (!el.closest('#editPanel') && 
+                    !el.closest('#passwordModal') && 
+                    !el.closest('#editModal') &&
+                    !el.closest('#imageModal') &&
+                    !el.classList.contains('edit-pencil') &&
+                    el.textContent.trim()) {
+                    
+                    content[`element_${index}`] = {
+                        tagName: el.tagName,
+                        textContent: el.textContent,
+                        className: el.className,
+                        id: el.id
+                    };
+                }
+            });
+            
+            return content;
         }
         
         // Função para destacar elementos editáveis
@@ -1352,21 +1423,32 @@
         }
         
         function addEditHighlights() {
-            const editableElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, img');
+            const editableElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, img, li, strong, em, b, i, div');
             
             editableElements.forEach(el => {
                 // Ignora elementos do painel de edição e modais
                 if (el.closest('#editPanel') || 
                     el.closest('#passwordModal') || 
                     el.closest('#editModal') ||
-                    el.closest('#imageModal')) {
+                    el.closest('#imageModal') ||
+                    el.classList.contains('edit-pencil')) {
+                    return;
+                }
+                
+                // Para elementos de texto, verifica se tem conteúdo editável
+                if (el.tagName !== 'IMG' && !hasEditableText(el)) {
                     return;
                 }
                 
                 el.style.outline = '2px dashed #3b82f6';
                 el.style.outlineOffset = '2px';
                 el.style.cursor = 'pointer';
-                el.title = `Clique para editar este ${el.tagName.toLowerCase()}`;
+                
+                const elementType = el.tagName === 'IMG' ? 'imagem' : 'texto';
+                el.title = `Clique para editar este ${elementType}`;
+                
+                // Adiciona classe para facilitar remoção posterior
+                el.classList.add('edit-highlighted');
             });
             
             // Adiciona canetinhas nos cards de drinks
@@ -1560,13 +1642,13 @@
         }
         
         function removeEditHighlights() {
-            const editableElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, img');
-            
-            editableElements.forEach(el => {
+            // Remove destaques de todos os elementos marcados
+            document.querySelectorAll('.edit-highlighted').forEach(el => {
                 el.style.outline = '';
                 el.style.outlineOffset = '';
                 el.style.cursor = '';
                 el.title = '';
+                el.classList.remove('edit-highlighted');
             });
             
             // Remove todas as canetinhas
@@ -1574,7 +1656,23 @@
         }
         
         function updateEditableCount() {
-            const count = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, img').length;
+            // Conta apenas elementos que realmente podem ser editados
+            let count = 0;
+            const allElements = document.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, button, a, label, img, li, strong, em, b, i, div');
+            
+            allElements.forEach(el => {
+                if (!el.closest('#editPanel') && 
+                    !el.closest('#passwordModal') && 
+                    !el.closest('#editModal') &&
+                    !el.closest('#imageModal') &&
+                    !el.classList.contains('edit-pencil')) {
+                    
+                    if (el.tagName === 'IMG' || hasEditableText(el)) {
+                        count++;
+                    }
+                }
+            });
+            
             document.getElementById('editableCount').textContent = count;
         }
         
@@ -1588,24 +1686,7 @@
             document.getElementById('editCount').textContent = editCount;
         }
         
-        function resetToOriginal() {
-            if (confirm('⚠️ Tem certeza que deseja restaurar todos os dados originais? Esta ação não pode ser desfeita.')) {
-                location.reload();
-            }
-        }
-        
-        function exportData() {
-            const data = extractCurrentMenuData();
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataBlob = new Blob([dataStr], {type: 'application/json'});
-            
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = `cardapio_${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            
-            showNotification("📤 Dados exportados com sucesso!", "success");
-        }
+
 
         function closeEditModal() {
             document.getElementById('editModal').style.display = 'none';
@@ -1650,8 +1731,7 @@
         window.showCategory = showCategory;
         window.searchDrinks = searchDrinks;
         window.toggleEditHighlight = toggleEditHighlight;
-        window.resetToOriginal = resetToOriginal;
-        window.exportData = exportData;
+
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987ce8dd30e32755',t:'MTc1OTMzMTY2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987cf2dfa2b82755',t:'MTc1OTMzMjA3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
