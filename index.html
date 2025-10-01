@@ -735,6 +735,7 @@
                     <div>Elementos editáveis: <span id="editableCount">-</span></div>
                     <div>Última edição: <span id="lastEdit">Nunca</span></div>
                     <div>Total de alterações: <span id="editCount">0</span></div>
+                    <div>Status do servidor: <span id="serverStatus" class="font-semibold text-green-600">🟢 Conectado</span></div>
                 </div>
             </div>
         </div>
@@ -766,7 +767,7 @@
     <script type="module">
         // Import Firebase functions
         import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
         import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
 
         // Firebase configuration
@@ -790,6 +791,37 @@
         let editMode = '';
         let currentEditElement = null;
         let originalData = {};
+        let realtimeListener = null;
+        let isUpdatingFromServer = false;
+
+        // Sistema de sincronização em tempo real
+        function setupRealtimeSync() {
+            const docRef = doc(db, "menu", "cardapio");
+            
+            realtimeListener = onSnapshot(docRef, (docSnap) => {
+                updateServerStatus(true); // Servidor conectado
+                
+                if (docSnap.exists() && !isUpdatingFromServer) {
+                    const data = docSnap.data();
+                    console.log("📡 Atualizações recebidas do servidor");
+                    
+                    // Aplica as mudanças com animação suave
+                    applyMenuDataWithAnimation(data);
+                    
+                    // Mostra notificação para visitantes (não para quem está editando)
+                    if (!isEditMode) {
+                        showNotification("🔄 Cardápio atualizado automaticamente!", "info");
+                    }
+                } else if (!docSnap.exists()) {
+                    console.log("Documento não existe, criando dados padrão");
+                    saveCurrentMenuToFirebase();
+                }
+            }, (error) => {
+                console.error("Erro no listener em tempo real:", error);
+                updateServerStatus(false); // Servidor desconectado
+                showNotification("⚠️ Conexão com servidor perdida", "error");
+            });
+        }
 
         // Carrega dados do Firebase ao inicializar
         async function loadMenuData() {
@@ -800,14 +832,18 @@
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     applyMenuData(data);
-                    console.log("Dados carregados do Firebase");
+                    console.log("✅ Dados iniciais carregados do Firebase");
                 } else {
-                    console.log("Nenhum dado encontrado, usando dados padrão");
-                    await saveCurrentMenuToFirebase(); // Salva dados atuais como padrão
+                    console.log("📝 Nenhum dado encontrado, criando dados padrão");
+                    await saveCurrentMenuToFirebase();
                 }
+                
+                // Inicia sincronização em tempo real após carregamento inicial
+                setupRealtimeSync();
+                
             } catch (error) {
                 console.error("Erro ao carregar dados:", error);
-                showNotification("❌ Erro ao carregar dados do servidor", "error");
+                showNotification("❌ Erro ao conectar com servidor", "error");
             }
         }
 
@@ -832,18 +868,108 @@
                     }
                 });
             }
+            
+            // Aplica outros textos editáveis se existirem
+            if (data.texts) {
+                Object.keys(data.texts).forEach(textId => {
+                    const element = document.querySelector(`[data-text-id="${textId}"]`);
+                    if (element && data.texts[textId]) {
+                        element.textContent = data.texts[textId];
+                    }
+                });
+            }
+        }
+
+        // Aplica dados com animação suave para atualizações em tempo real
+        function applyMenuDataWithAnimation(data) {
+            if (data.drinks) {
+                data.drinks.forEach(drink => {
+                    const element = document.querySelector(`[data-drink-id="${drink.id}"]`);
+                    if (element) {
+                        const nameEl = element.querySelector('h3');
+                        const descEl = element.querySelector('p');
+                        const priceEl = element.querySelector('.price-tag');
+                        const imgEl = element.querySelector('img');
+                        
+                        // Aplica mudanças com efeito visual suave
+                        if (nameEl && drink.name && nameEl.textContent !== drink.name) {
+                            animateTextChange(nameEl, drink.name);
+                        }
+                        if (descEl && drink.description && descEl.textContent !== drink.description) {
+                            animateTextChange(descEl, drink.description);
+                        }
+                        if (priceEl && drink.price && priceEl.textContent !== drink.price) {
+                            animateTextChange(priceEl, drink.price);
+                        }
+                        if (imgEl && drink.image && imgEl.src !== drink.image.url) {
+                            animateImageChange(imgEl, drink.image.url, drink.image.alt);
+                        }
+                    }
+                });
+            }
+            
+            // Aplica outros textos editáveis com animação
+            if (data.texts) {
+                Object.keys(data.texts).forEach(textId => {
+                    const element = document.querySelector(`[data-text-id="${textId}"]`);
+                    if (element && data.texts[textId] && element.textContent !== data.texts[textId]) {
+                        animateTextChange(element, data.texts[textId]);
+                    }
+                });
+            }
+        }
+
+        // Anima mudança de texto
+        function animateTextChange(element, newText) {
+            element.style.transition = 'all 0.3s ease';
+            element.style.backgroundColor = '#fef3c7';
+            element.style.transform = 'scale(1.02)';
+            
+            setTimeout(() => {
+                element.textContent = newText;
+                setTimeout(() => {
+                    element.style.backgroundColor = '';
+                    element.style.transform = '';
+                    setTimeout(() => {
+                        element.style.transition = '';
+                    }, 300);
+                }, 100);
+            }, 150);
+        }
+
+        // Anima mudança de imagem
+        function animateImageChange(element, newSrc, newAlt) {
+            element.style.transition = 'opacity 0.3s ease';
+            element.style.opacity = '0.5';
+            
+            setTimeout(() => {
+                element.src = newSrc;
+                element.alt = newAlt;
+                element.style.opacity = '1';
+                setTimeout(() => {
+                    element.style.transition = '';
+                }, 300);
+            }, 150);
         }
 
         // Salva dados atuais do menu no Firebase
         async function saveCurrentMenuToFirebase() {
             try {
+                isUpdatingFromServer = true; // Previne loop de atualizações
+                
                 const menuData = extractCurrentMenuData();
                 const docRef = doc(db, "menu", "cardapio");
                 await setDoc(docRef, menuData);
-                console.log("Dados salvos no Firebase");
+                console.log("✅ Dados salvos no Firebase");
+                
+                setTimeout(() => {
+                    isUpdatingFromServer = false;
+                }, 1000);
+                
                 return true;
             } catch (error) {
-                console.error("Erro ao salvar dados:", error);
+                console.error("❌ Erro ao salvar dados:", error);
+                isUpdatingFromServer = false;
                 return false;
             }
         }
@@ -851,8 +977,10 @@
         // Extrai dados atuais do menu
         function extractCurrentMenuData() {
             const drinks = [];
+            const texts = {};
             let drinkId = 1;
             
+            // Extrai dados dos drinks
             document.querySelectorAll('.card-hover').forEach(card => {
                 const nameEl = card.querySelector('h3');
                 const descEl = card.querySelector('p');
@@ -879,45 +1007,79 @@
                 }
             });
             
+            // Extrai outros textos editáveis (títulos, descrições gerais, etc.)
+            document.querySelectorAll('[data-text-id]').forEach(element => {
+                const textId = element.getAttribute('data-text-id');
+                if (textId && element.textContent.trim()) {
+                    texts[textId] = element.textContent;
+                }
+            });
+            
             return {
                 drinks: drinks,
-                lastUpdated: new Date().toISOString()
+                texts: texts,
+                lastUpdated: new Date().toISOString(),
+                version: Date.now() // Para controle de versão
             };
         }
 
         // Salva alteração específica no Firebase
         async function saveEditToFirebase(elementType, elementId, newValue, additionalData = {}) {
             try {
+                isUpdatingFromServer = true; // Previne loop de atualizações
+                
                 const docRef = doc(db, "menu", "cardapio");
                 const docSnap = await getDoc(docRef);
                 
-                let menuData = docSnap.exists() ? docSnap.data() : { drinks: [] };
+                let menuData = docSnap.exists() ? docSnap.data() : { drinks: [], texts: {} };
                 
-                // Encontra e atualiza o item específico
-                const drinkIndex = menuData.drinks.findIndex(drink => drink.id === elementId);
-                
-                if (drinkIndex !== -1) {
-                    if (elementType === 'name') {
-                        menuData.drinks[drinkIndex].name = newValue;
-                    } else if (elementType === 'description') {
-                        menuData.drinks[drinkIndex].description = newValue;
-                    } else if (elementType === 'price') {
-                        menuData.drinks[drinkIndex].price = newValue;
-                    } else if (elementType === 'image') {
-                        menuData.drinks[drinkIndex].image = {
-                            url: newValue,
-                            alt: additionalData.alt || ''
-                        };
-                    }
+                // Se é um drink
+                if (elementId && elementId.toString().match(/^\d+$/)) {
+                    const drinkIndex = menuData.drinks.findIndex(drink => drink.id === elementId);
                     
-                    menuData.lastUpdated = new Date().toISOString();
-                    await setDoc(docRef, menuData);
-                    return true;
+                    if (drinkIndex !== -1) {
+                        if (elementType === 'name') {
+                            menuData.drinks[drinkIndex].name = newValue;
+                        } else if (elementType === 'description') {
+                            menuData.drinks[drinkIndex].description = newValue;
+                        } else if (elementType === 'price') {
+                            menuData.drinks[drinkIndex].price = newValue;
+                        } else if (elementType === 'image') {
+                            menuData.drinks[drinkIndex].image = {
+                                url: newValue,
+                                alt: additionalData.alt || ''
+                            };
+                        }
+                    } else {
+                        // Cria novo drink se não existir
+                        const newDrink = {
+                            id: elementId,
+                            name: elementType === 'name' ? newValue : '',
+                            description: elementType === 'description' ? newValue : '',
+                            price: elementType === 'price' ? newValue : '',
+                            image: elementType === 'image' ? { url: newValue, alt: additionalData.alt || '' } : null
+                        };
+                        menuData.drinks.push(newDrink);
+                    }
+                } else {
+                    // Se é um texto geral (título, descrição, etc.)
+                    if (!menuData.texts) menuData.texts = {};
+                    menuData.texts[elementId] = newValue;
                 }
                 
-                return false;
+                menuData.lastUpdated = new Date().toISOString();
+                menuData.version = Date.now();
+                
+                await setDoc(docRef, menuData);
+                
+                setTimeout(() => {
+                    isUpdatingFromServer = false;
+                }, 1000);
+                
+                return true;
             } catch (error) {
-                console.error("Erro ao salvar alteração:", error);
+                console.error("❌ Erro ao salvar alteração:", error);
+                isUpdatingFromServer = false;
                 return false;
             }
         }
@@ -928,7 +1090,8 @@
             notification.innerHTML = message;
             
             const bgColor = type === 'success' ? 'bg-green-500' : 
-                           type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+                           type === 'error' ? 'bg-red-500' : 
+                           type === 'info' ? 'bg-blue-500' : 'bg-yellow-500';
             
             notification.className = `fixed top-4 left-4 ${bgColor} text-white px-4 py-2 rounded-lg font-medium z-50 shadow-lg`;
             document.body.appendChild(notification);
@@ -938,6 +1101,20 @@
                     notification.parentNode.removeChild(notification);
                 }
             }, 4000);
+        }
+
+        // Atualiza status do servidor
+        function updateServerStatus(connected) {
+            const statusEl = document.getElementById('serverStatus');
+            if (statusEl) {
+                if (connected) {
+                    statusEl.innerHTML = '🟢 Conectado';
+                    statusEl.className = 'font-semibold text-green-600';
+                } else {
+                    statusEl.innerHTML = '🔴 Desconectado';
+                    statusEl.className = 'font-semibold text-red-600';
+                }
+            }
         }
 
         function showCategory(category) {
@@ -1327,46 +1504,66 @@
             // Salva no localStorage para persistência local
             saveToLocalStorage();
             
-            // Tenta salvar no Firebase de forma assíncrona (não bloqueia a UI)
+            // Determina o tipo de elemento e ID para salvar no Firebase
+            let elementType = '';
+            let elementId = '';
+            let additionalData = {};
+            
+            // Verifica se é um drink
             const card = currentEditElement.closest('.card-hover');
             if (card) {
-                const drinkId = card.getAttribute('data-drink-id');
-                if (drinkId) {
-                    let elementType = '';
-                    let additionalData = {};
-                    
-                    if (currentEditElement.tagName === 'IMG') {
-                        elementType = 'image';
-                        additionalData.alt = document.getElementById('editAltInput').value;
-                    } else if (currentEditElement.tagName === 'H3') {
-                        elementType = 'name';
-                    } else if (currentEditElement.tagName === 'P') {
-                        elementType = 'description';
-                    } else if (currentEditElement.classList.contains('price-tag')) {
-                        elementType = 'price';
-                    }
-                    
-                    if (elementType) {
-                        // Salva de forma assíncrona sem bloquear
-                        saveEditToFirebase(elementType, drinkId, newValue, additionalData)
-                            .then(success => {
-                                if (success) {
-                                    showNotification("✅ Salvo automaticamente!", "success");
-                                } else {
-                                    showNotification("⚠️ Salvo localmente", "info");
-                                }
-                            })
-                            .catch(() => {
-                                showNotification("⚠️ Salvo localmente", "info");
-                            });
-                    }
+                elementId = card.getAttribute('data-drink-id');
+                
+                if (currentEditElement.tagName === 'IMG') {
+                    elementType = 'image';
+                    additionalData.alt = document.getElementById('editAltInput').value;
+                } else if (currentEditElement.tagName === 'H3') {
+                    elementType = 'name';
+                } else if (currentEditElement.tagName === 'P') {
+                    elementType = 'description';
+                } else if (currentEditElement.classList.contains('price-tag')) {
+                    elementType = 'price';
                 }
             } else {
-                // Para elementos que não são drinks, salva no localStorage
-                showNotification("✅ Texto atualizado!", "success");
+                // Para outros elementos (títulos gerais, etc.)
+                elementId = currentEditElement.getAttribute('data-text-id') || 
+                           generateTextId(currentEditElement);
+                elementType = 'text';
+                
+                // Adiciona ID se não existir
+                if (!currentEditElement.hasAttribute('data-text-id')) {
+                    currentEditElement.setAttribute('data-text-id', elementId);
+                }
+            }
+            
+            // Salva no Firebase de forma assíncrona
+            if (elementType && elementId) {
+                showNotification("💾 Salvando no servidor...", "info");
+                
+                saveEditToFirebase(elementType, elementId, newValue, additionalData)
+                    .then(success => {
+                        if (success) {
+                            showNotification("✅ Salvo no servidor! Todos verão a mudança.", "success");
+                        } else {
+                            showNotification("⚠️ Erro no servidor, salvo localmente", "error");
+                        }
+                    })
+                    .catch(() => {
+                        showNotification("⚠️ Erro no servidor, salvo localmente", "error");
+                    });
+            } else {
+                showNotification("✅ Texto atualizado localmente!", "success");
             }
             
             closeEditModal();
+        }
+        
+        // Gera ID único para elementos de texto
+        function generateTextId(element) {
+            const tagName = element.tagName.toLowerCase();
+            const textContent = element.textContent.substring(0, 20).replace(/\s+/g, '_');
+            const timestamp = Date.now();
+            return `${tagName}_${textContent}_${timestamp}`;
         }
         
         // Função para salvar no localStorage
@@ -1592,13 +1789,15 @@
             
             // Salva no Firebase
             if (drinkId) {
-                showNotification("💾 Salvando drink completo...", "info");
+                showNotification("💾 Salvando drink completo no servidor...", "info");
                 
                 try {
+                    isUpdatingFromServer = true; // Previne loop de atualizações
+                    
                     const docRef = doc(db, "menu", "cardapio");
                     const docSnap = await getDoc(docRef);
                     
-                    let menuData = docSnap.exists() ? docSnap.data() : { drinks: [] };
+                    let menuData = docSnap.exists() ? docSnap.data() : { drinks: [], texts: {} };
                     
                     // Encontra e atualiza o drink completo
                     const drinkIndex = menuData.drinks.findIndex(drink => drink.id === drinkId);
@@ -1629,12 +1828,19 @@
                     }
                     
                     menuData.lastUpdated = new Date().toISOString();
+                    menuData.version = Date.now();
+                    
                     await setDoc(docRef, menuData);
                     
-                    showNotification("✅ Drink salvo com sucesso no servidor!", "success");
+                    setTimeout(() => {
+                        isUpdatingFromServer = false;
+                    }, 1000);
+                    
+                    showNotification("✅ Drink salvo! Todos os visitantes verão as mudanças.", "success");
                 } catch (error) {
-                    console.error("Erro ao salvar drink:", error);
-                    showNotification("⚠️ Drink salvo localmente (erro no servidor)", "error");
+                    console.error("❌ Erro ao salvar drink:", error);
+                    isUpdatingFromServer = false;
+                    showNotification("⚠️ Erro no servidor, drink salvo localmente", "error");
                 }
             }
             
@@ -1694,14 +1900,14 @@
         }
 
         async function saveChanges() {
-            showNotification("💾 Salvando todo o cardápio...", "info");
+            showNotification("💾 Salvando todo o cardápio no servidor...", "info");
             
             const success = await saveCurrentMenuToFirebase();
             
             if (success) {
-                showNotification("✅ Cardápio completo salvo no servidor!", "success");
+                showNotification("✅ Cardápio completo salvo! Todos os visitantes verão as mudanças.", "success");
             } else {
-                showNotification("❌ Erro ao salvar cardápio completo", "error");
+                showNotification("❌ Erro ao salvar cardápio no servidor", "error");
             }
         }
 
@@ -1733,5 +1939,5 @@
         window.toggleEditHighlight = toggleEditHighlight;
 
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987cf2dfa2b82755',t:'MTc1OTMzMjA3NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987cffe0f14b2755',t:'MTc1OTMzMjYwOC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
