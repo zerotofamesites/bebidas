@@ -1,23 +1,773 @@
-<script type="module">
-  // Import the functions you need from the SDKs you need
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio de Bebidas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+        
+        .font-playfair { font-family: 'Playfair Display', serif; }
+        .font-inter { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .category-btn {
+            transition: all 0.3s ease;
+        }
+        
+        .category-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .price-tag {
+            background: linear-gradient(135deg, #1f2937 0%, #374151 100%);
+        }
+        
+        .ingredient-tag {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+        
+        .text-shadow {
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+        }
+        
+        .text-shadow-lg {
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.8);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 15px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+        
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            color: white;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 1001;
+            background: rgba(0,0,0,0.5);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+        
+        .close:hover {
+            background: rgba(255,255,255,0.2);
+            transform: scale(1.1);
+        }
+        
+        .zoomable {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .zoomable:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-inter">
+    <!-- Header -->
+    <header class="text-white py-16 relative overflow-hidden">
+        <!-- Background com desfoque -->
+        <div class="absolute inset-0" style="background-image: url('https://img.cdndsgni.com/preview/10576301.jpg'); background-size: cover; background-position: center; background-repeat: no-repeat; filter: blur(5px); transform: scale(1.1);"></div>
+        <!-- Overlay para melhor legibilidade do texto -->
+        <div class="absolute inset-0 bg-black bg-opacity-60"></div>
+        <div class="container mx-auto px-6 text-center relative z-10">
+            <h1 class="font-playfair text-5xl md:text-6xl font-bold mb-4 text-shadow-lg">Carta de Bebidas</h1>
+            <p class="text-xl opacity-90 max-w-2xl mx-auto text-shadow">Descubra nossa seleção especial de drinks artesanais, cervejas premium e bebidas refrescantes</p>
+        </div>
+    </header>
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-  const firebaseConfig = {
-    apiKey: "AIzaSyDYtzeQ0oGB1XT0J-ufSi7sOTHQVjmoGvI",
-    authDomain: "bebidasdrink-23216.firebaseapp.com",
-    projectId: "bebidasdrink-23216",
-    storageBucket: "bebidasdrink-23216.firebasestorage.app",
-    messagingSenderId: "245032874181",
-    appId: "1:245032874181:web:c2c14207b833e3f02140ac",
-    measurementId: "G-RDTHQBJHHQ"
-  };
+    <!-- Navigation -->
+    <nav class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-6">
+            <!-- Search Bar -->
+            <div class="flex justify-center py-4 border-b border-gray-200">
+                <div class="relative w-full max-w-md">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Pesquisar drinks..." 
+                        class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-full leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                        onkeyup="searchDrinks()"
+                    >
+                </div>
+            </div>
+            
+            <!-- Category Buttons -->
+            <div class="flex flex-wrap justify-center gap-2 py-4">
+                <button onclick="showCategory('all')" class="category-btn active px-6 py-3 rounded-full font-medium text-sm">Todos</button>
+                <button onclick="showCategory('caipirinhas')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Caipirinhas</button>
+                <button onclick="showCategory('especiais')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Drinks Especiais</button>
+                <button onclick="showCategory('sem-alcool')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Sem Álcool</button>
+                <button onclick="showCategory('cervejas')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Cervejas</button>
+                <button onclick="showCategory('outras')" class="category-btn px-6 py-3 rounded-full font-medium text-sm bg-gray-100 text-gray-700 hover:bg-gray-200">Outras Bebidas</button>
+            </div>
+        </div>
+    </nav>
 
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-</script>
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-12">
+        <!-- Caipirinhas Section -->
+        <section id="caipirinhas" class="category-section mb-16">
+            <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Caipirinhas & Caipiroskas</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Caipiroska -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhSZcVbiEXcZlHOM7_JJbTCVxMgaqLNEAxmPBgMnwKU2mIW_XRHrDNfSP4xjZwvvTgDQeD4iEVD06rNTuFn6HH2NkZpUkzJ-_hmXxjnSCuhCbWJeC17RzyAKEL8UQRd3iSlFgJYAxOpIDvIxHuppFHKp0Zbj_phdanTXf2tPsOwHRVF1aJ12RVrCWAMLxeq" alt="Caipiroska com frutas frescas" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Caipiroska</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 16,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Vodka premium em diversos sabores</p>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <strong>Sabores:</strong> Kiwi, Morango, Kiwi c/ Morango, Limão, Limão c/ Tangerina, Abacaxi c/ Hortelã
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Caipirinha -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgehJaelP6GEhPgL3k8HF4Xsmgle-5CnJX9jbKSedMn2RyBkP1N0oS1qoyO_A2aEycjXYsKVzSFo8ncw1AGRFKKzmOjOzd-DoIZb_NnnuXB4-ydymZcw-vGYz1bFztJ8rvqMJOBFqcEPoSpGHc0dnXmXyoMMW-UL5ZXXX9iQGJSQM9CsUf7U8PrgzLqnyVy=s16000" alt="Caipirinha tradicional brasileira" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Caipirinha</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 12,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Tradicional brasileira em diversos sabores</p>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Cachaça</span>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <strong>Sabores:</strong> Kiwi, Morango, Kiwi c/ Morango, Limão, Limão c/ Tangerina, Abacaxi c/ Hortelã
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Nevadas -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEhQd639RhDSrZJep9Rsv_3JDkFh8-czzYiPNgDDQbLJlLCFaZBxDMVImmrnPks1zV6arxWm0nyHwHt-HdQd_omkCLAvjS7TlFTmxa8xABmK2oZSfbQzBkfCP83KhE3eyDCGKRLSL97WSkFBo8hUrYQ46v0YSzwiGX6Yo0f0c06KeF8XkeZ_CGAo6-k0pRir" alt="Nevada cremosa" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Nevadas</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 19,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Cremosas e refrescantes</p>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Leite Condensado</span>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            <strong>Sabores:</strong> Morango, Maracujá, Abacaxi c/ Hortelã
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Drinks Especiais Section -->
+        <section id="especiais" class="category-section mb-16">
+            <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Drinks Especiais</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <!-- Lambedo de Voinha -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgaA65d-tqHAMltxP7c-ntMvddYZKS8CloTiuqoCvolNAuTs5sKgEwkX29z3PR4ctkXuD1cf8mMnpHrdky6bEGHAmMRYXkWKecZiVZNotQUD_Wa3WKbBfV8NlHuaGdADr58bWzgi5KUAX6wbWDaoWFCLUZHyCx61lMVSggZ-pxWsEdPTLsMxNL4yBvFRZiK" alt="Lambedo de Voinha especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Lambedo de Voinha</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 29,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Nossa especialidade premium</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Licor 43</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hortelã</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Água com Gás</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mango Mule -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://resize.casapino.com.br/?u=https://cms-bomgourmet.s3.amazonaws.com/bomgourmet%2F2022%2F12%2F30151117%2FCaipirinha-de-Manga-com-Pimenta-quermesse.jpg&w=480" alt="Mango Mule tropical" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Mango Mule</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 29,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Tropical com toque picante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Manga</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Pimenta</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dona Lilê -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEiAuVYe3khR488CRj62jXGh8KhsA_7gGPOo-L53Q61ClAHs5Nt0BkOmu9c37mnaSM04as0WlO-ZaEE1A104I3TISRFdo8OmmTNI0TOSCnhNNHiP8sl5AcxiJQDlRO1tn995IxH3DSkzQvwA8gKPoyJ1tCX21tFwdCCh9RVhAR_JodLoQo9Rf3-l2vo1dz2R" alt="Dona Lilê infusão especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Dona Lilê</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 26,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Infusão especial com Lillet</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Capim-santo</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hibisco</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Lillet</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aperol Spritz -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://www.libelconstrutora.com.br/with/wp-content/uploads/2018/03/aperol-zcafe.jpg" alt="Aperol Spritz italiano" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Aperol Spritz</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 26,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico italiano refrescante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Aperol</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espumante</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Água com Gás</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- In Love -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://conteudo.imguol.com.br/c/entretenimento/9e/2023/01/30/sakerinha-de-limao-siciliano-e-manjericao-._v2_300x400.jpg" alt="In Love com manjericão" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">In Love</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 26,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Aromático com manjericão</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Limão Siciliano</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Manjericão</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gengibre -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://s2.glbimg.com/Ouy28yGrD_5DqsXAbJ0ieFXzUWQ=/smart/e.glbimg.com/og/ed/f/original/2019/08/08/receita-drink-falafada_2.jpg" alt="Drink de gengibre especial" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Gengibre</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 24,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Com espuma especial de gengibre</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Gengibre</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espuma</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charmosa -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgfxpJmsxRWfs6yZT5yPxUJgtdRWhCkzR54j6x8YemDDh__dyRkpZl3DfAzzM7-m3mEpRPGHYuSr-vwyS_XfnB4ulUgRFbYuG7yRJyy-I6lMZ8pCUfVk7lV05HKikBuacCh81G-Q51VyGh_qycD-amS8Pz3Mm6kDexIlYQ73bJsJPfbD128iF0wVJuWECLt" alt="Charmosa elegante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Charmosa</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 26,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Drink elegante e sofisticado</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Frutas Vermelhas</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espumante</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mojito -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgiZX430pi3QpOTBFpCTYx9rJGIhN-Ym5CL3md7GvdUjuRwLq_cYmNaUvELPe_dKrz-6vkZAjch5nPhEcsPivj3L_bTxnyFJoysswmitVyitGVqY0yGUA23i-doh18BoBWHD5tf9gIDvTnmIvVp2o0v73qn7i-em4_0KN-Jm4IKjKCxxBYpJrxmtSzl5KIR" alt="Mojito refrescante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Mojito</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 24,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico cubano refrescante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Rum</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hortelã</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Limão</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Água com Gás</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Moscow Mule -->
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEi_dkXMZx3HW_xyBJu-J6NKrCZUuicGUKITmFPCGavpyCfC2RV98lAeSlAs68hNkrT2UsOoLGSRTxKZe2BN-YoaWH6zXH8HQMmBteP9565EqpcN6EfjU3hBqweUwCUQjspESgkKs3sQeM7q8Bmh2fAt4igKN-LG9yvgFFJExTXpk8X4hi4h93YAfFR0kYMY" alt="Moscow Mule" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Moscow Mule</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 29,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico americano picante</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Gengibre</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Sumo de Limão</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Xarope de Açúcar</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Espuma de Gengibre</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mais drinks especiais -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEghdFQ7Nn4Z1DLxTKnzm4X00AoxKpVdHkxjS_PbzLi8PP0EcWtQbNt5-_pP0YZJ6d81-l06c1_1PmvQB10M3nwoj2ssjb41nMqExIf-wNRp8nts-tfLo22ctXrDjzCwvzFUY4JRSA5Aovd9QTjt8-rm54xtpuGuxBYa93xgs-pzc7UaTaCrKdkzsVYY9o4s" alt="Cajuzada de Voinha" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Cajuzada de Voinha</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 24,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Sabor único do nordeste</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Caju</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hortelã</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Vodka</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgGISpvdEVamQv6mI8T-26pQhsnG4aZeD2aydMvLfwFRGBuOSzKPb67Gqeo3YmgOVv7qe5D2IiavkVWejT8qwzkwcBKbs5vIsOSyOW1IS7nTl3Xut6CoS3CTHN0Qc1VDAnw6iB7FFR_3DUfudDD56jxBlToD8vkNXT7ich_nd-DwiN2OqXG1UPGYv0vFe_h" alt="Gin Tônica clássico" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Gin Tônica</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 22,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Clássico com toque especial</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Gin</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Schweppes</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Cereja</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://canaldareceita.com.br/wp-content/uploads/2025/02/MARGARITA.jpg.webp" alt="Margarita mexicana tradicional" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Margarita</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 22,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Mexicana tradicional</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Tequila</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Curaçao Blue</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Sem Álcool Section -->
+        <section id="sem-alcool" class="category-section mb-16">
+            <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Drinks Sem Álcool</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEgDVvWr5zKwwyD_NM0uS6OCr5rAF-5ftA9m4XH66AatyL6cwoEstQQnyXbrUWYWqmQyLM44bZneZ7xDlhCkwJCEFqqalb8YZBwr3-Z9yHjBM-hDHcX7xVf2v-RgaMR_3-r9pzCxpOi5JpwovtVIURAmR-zANGkBRLw4Q_une3fh-G6BbsGxOFea2lEEUfg6" alt="Pink Limonade refrescante" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Pink Limonade</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 16,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Refrescante infusão rosa</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Capim-santo</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Melancia</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Hibisco</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://conteudo.imguol.com.br/c/entretenimento/65/2023/01/27/soda-italiana-de-maca-verde-._v2_300x400.jpg" alt="Soda Italiana de maçã verde" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Soda Italiana</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 16,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Combinação de sabores únicos</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Maçã Verde</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Cranberry</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Gengibre</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://www.receiteria.com.br/wp-content/uploads/receitas-de-caipifruta.png" alt="Caipifruta refrescante sem álcool" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Caipifruta</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 16,90</span>
+                        </div>
+                        <p class="text-gray-600 mb-4">Versão sem álcool da caipirinha</p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm font-medium">Fruta à escolha</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Cervejas Section -->
+        <section id="cervejas" class="category-section mb-16">
+            <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Cervejas</h2>
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://blogger.googleusercontent.com/img/a/AVvXsEguOWJIC2R7zbSl0om320Yt6bnCIdEN0N2m84o3Lq9GOsXLGmXfVVlbwMxqvNpSUJiLZ3jtc67OxV84SALkbm7OaXKYNBXbkEr0ESI-NW03tLowl2FI6P0GzpXJ7PODnJxcrQZ51r3hRIxvxiXNzoe5f3GcVFvkiqAjOKnXtzAXJt506x0qzVPLyVI-BnaE" alt="Chopp Heineken gelado" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Chopp Heineken</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 18,90</span>
+                        </div>
+                        <p class="text-gray-600">Chopp gelado na pressão</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://mercantilnovaera.vtexassets.com/arquivos/ids/217418-1200-auto?v=.00&width=1200&height=auto&aspect=true" alt="Cerveja Corona Extra" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Corona</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 12,00</span>
+                        </div>
+                        <p class="text-gray-600">Cerveja mexicana refrescante</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg overflow-hidden card-hover">
+                    <div class="h-48 overflow-hidden bg-gray-100 flex items-center justify-center">
+                        <img src="https://superprix.vteximg.com.br/arquivos/ids/226297-600-600/774170_4.jpg?v=637000000000000000" alt="Cerveja Heineken" class="max-w-full max-h-full object-contain zoomable" onclick="openModal(this)" onerror="this.src=''; this.alt='Imagem não disponível'; this.style.display='none';">
+                    </div>
+                    <div class="p-6">
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-playfair text-2xl font-semibold text-gray-800">Heineken</h3>
+                            <span class="price-tag text-white px-4 py-2 rounded-full font-semibold">R$ 12,00</span>
+                        </div>
+                        <p class="text-gray-600">Premium holandesa</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Outras Bebidas Section -->
+        <section id="outras" class="category-section mb-16">
+            <h2 class="font-playfair text-4xl font-bold text-gray-800 mb-8 text-center">Outras Bebidas</h2>
+            
+            <!-- Sucos -->
+            <div class="mb-12">
+                <h3 class="font-playfair text-2xl font-semibold text-gray-700 mb-6">Sucos Naturais</h3>
+                <div class="bg-white rounded-2xl shadow-lg p-8">
+                    <div class="grid md:grid-cols-2 gap-8">
+                        <div>
+                            <h4 class="font-semibold text-lg mb-4 text-gray-800">Com Água</h4>
+                            <div class="flex justify-between items-center mb-2">
+                                <span>Copo</span>
+                                <span class="font-semibold text-purple-600">R$ 7,00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Jarra</span>
+                                <span class="font-semibold text-purple-600">R$ 14,00</span>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-4 text-gray-800">Com Leite</h4>
+                            <div class="flex justify-between items-center mb-2">
+                                <span>Copo</span>
+                                <span class="font-semibold text-purple-600">R$ 8,00</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>Jarra</span>
+                                <span class="font-semibold text-purple-600">R$ 16,00</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-6 pt-6 border-t border-gray-200">
+                        <p class="text-gray-600 mb-3"><strong>Sabores disponíveis:</strong></p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Abacaxi c/ Hortelã</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Maracujá</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Abacaxi</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Acerola</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Cajá</span>
+                            <span class="ingredient-tag px-3 py-1 rounded-full text-sm">Caju</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Refrigerantes e Energéticos -->
+            <div class="grid md:grid-cols-2 gap-8">
+                <div class="bg-white rounded-2xl shadow-lg p-8">
+                    <h3 class="font-playfair text-2xl font-semibold text-gray-700 mb-6">Refrigerantes</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span>Coca-Cola / Coca Zero</span>
+                            <span class="font-semibold text-purple-600">R$ 7,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Sprite</span>
+                            <span class="font-semibold text-purple-600">R$ 7,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Fanta (Uva/Laranja)</span>
+                            <span class="font-semibold text-purple-600">R$ 7,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Guaraná Kuat</span>
+                            <span class="font-semibold text-purple-600">R$ 7,00</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-lg p-8">
+                    <h3 class="font-playfair text-2xl font-semibold text-gray-700 mb-6">Energéticos & Águas</h3>
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span>Red Bull</span>
+                            <span class="font-semibold text-purple-600">R$ 15,90</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Monster</span>
+                            <span class="font-semibold text-purple-600">R$ 14,90</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Água com Gás</span>
+                            <span class="font-semibold text-purple-600">R$ 6,00</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span>Água sem Gás</span>
+                            <span class="font-semibold text-purple-600">R$ 5,00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal para zoom das imagens -->
+    <div id="imageModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
+    </div>
+
+    <!-- Footer -->
+    <footer class="gradient-bg text-white py-12">
+        <div class="container mx-auto px-6 text-center">
+            <p class="text-lg opacity-90">Desfrute com moderação • Bebidas alcoólicas não devem ser consumidas por menores de 18 anos</p>
+        </div>
+    </footer>
+
+    <script>
+        function showCategory(category) {
+            // Remove active class from all buttons
+            document.querySelectorAll('.category-btn').forEach(btn => {
+                btn.classList.remove('active');
+                btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            });
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            event.target.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            
+            // Hide all sections
+            document.querySelectorAll('.category-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Show selected category or all
+            if (category === 'all') {
+                document.querySelectorAll('.category-section').forEach(section => {
+                    section.style.display = 'block';
+                });
+            } else {
+                const targetSection = document.getElementById(category);
+                if (targetSection) {
+                    targetSection.style.display = 'block';
+                }
+            }
+        }
+
+        // Initialize with all categories visible
+        document.addEventListener('DOMContentLoaded', function() {
+            showCategory('all');
+        });
+
+        // Search functionality
+        function searchDrinks() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const allCards = document.querySelectorAll('.card-hover');
+            
+            // If search is empty, show all cards
+            if (searchTerm === '') {
+                allCards.forEach(card => {
+                    card.style.display = 'block';
+                });
+                return;
+            }
+            
+            // Hide all cards first
+            allCards.forEach(card => {
+                card.style.display = 'none';
+            });
+            
+            // Show cards that match the search
+            allCards.forEach(card => {
+                const drinkName = card.querySelector('h3').textContent.toLowerCase();
+                const description = card.querySelector('p').textContent.toLowerCase();
+                const ingredients = Array.from(card.querySelectorAll('.ingredient-tag')).map(tag => tag.textContent.toLowerCase()).join(' ');
+                
+                if (drinkName.includes(searchTerm) || 
+                    description.includes(searchTerm) || 
+                    ingredients.includes(searchTerm)) {
+                    card.style.display = 'block';
+                }
+            });
+        }
+
+        // Funções para o modal de zoom das imagens
+        function openModal(img) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('modalImage');
+            modal.style.display = 'block';
+            modalImg.src = img.src;
+            modalImg.alt = img.alt;
+            
+            // Previne scroll do body quando modal está aberto
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('imageModal');
+            modal.style.display = 'none';
+            
+            // Restaura scroll do body
+            document.body.style.overflow = 'auto';
+        }
+
+        // Fecha modal ao clicar fora da imagem
+        document.getElementById('imageModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Fecha modal com tecla ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987df4e3c0562755',t:'MTc1OTM0MjY0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
