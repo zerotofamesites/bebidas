@@ -1369,7 +1369,194 @@
                 el.title = `Clique para editar este ${el.tagName.toLowerCase()}`;
             });
             
+            // Adiciona canetinhas nos cards de drinks
+            addEditPencils();
+            
             updateEditableCount();
+        }
+        
+        function addEditPencils() {
+            // Remove canetinhas existentes
+            document.querySelectorAll('.edit-pencil').forEach(pencil => pencil.remove());
+            
+            // Adiciona canetinha em cada card de drink
+            document.querySelectorAll('.card-hover').forEach(card => {
+                const pencil = document.createElement('div');
+                pencil.className = 'edit-pencil absolute top-2 right-2 bg-blue-500 hover:bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center cursor-pointer shadow-lg transition-all duration-200 hover:scale-110';
+                pencil.innerHTML = '✏️';
+                pencil.title = 'Editar este drink';
+                pencil.style.zIndex = '10';
+                
+                // Adiciona posição relativa ao card se não tiver
+                if (getComputedStyle(card).position === 'static') {
+                    card.style.position = 'relative';
+                }
+                
+                // Evento de clique na canetinha
+                pencil.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    openDrinkEditor(card);
+                });
+                
+                card.appendChild(pencil);
+            });
+        }
+        
+        function openDrinkEditor(card) {
+            const drinkId = card.getAttribute('data-drink-id');
+            const nameEl = card.querySelector('h3');
+            const descEl = card.querySelector('p');
+            const priceEl = card.querySelector('.price-tag');
+            const imgEl = card.querySelector('img');
+            
+            currentEditElement = card;
+            
+            document.getElementById('editModalTitle').textContent = '✏️ Editar Drink Completo';
+            document.getElementById('editModalContent').innerHTML = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Nome do Drink:</label>
+                        <input type="text" id="editDrinkName" value="${nameEl ? nameEl.textContent : ''}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Nome do drink">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Descrição:</label>
+                        <textarea id="editDrinkDesc" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 h-24" placeholder="Descrição do drink">${descEl ? descEl.textContent : ''}</textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Preço:</label>
+                        <input type="text" id="editDrinkPrice" value="${priceEl ? priceEl.textContent : ''}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="R$ 00,00">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">URL da Imagem:</label>
+                        <input type="url" id="editDrinkImage" value="${imgEl ? imgEl.src : ''}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://...">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 text-sm font-medium mb-2">Texto Alternativo da Imagem:</label>
+                        <input type="text" id="editDrinkImageAlt" value="${imgEl ? imgEl.alt : ''}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Descrição da imagem">
+                    </div>
+                    
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <p class="text-sm text-blue-800">
+                            <strong>🎯 Editando:</strong> ${nameEl ? nameEl.textContent : 'Drink'}<br>
+                            <strong>📍 ID:</strong> ${drinkId}<br>
+                            <strong>💡 Dica:</strong> Todos os campos serão atualizados automaticamente
+                        </p>
+                    </div>
+                </div>
+            `;
+            
+            // Substitui o botão de salvar para salvar o drink completo
+            const modalContent = document.querySelector('#editModal .modal-content');
+            const buttonsDiv = modalContent.querySelector('.flex.gap-4');
+            buttonsDiv.innerHTML = `
+                <button onclick="saveDrinkEdit()" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors">
+                    💾 Salvar Drink
+                </button>
+                <button onclick="closeEditModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-400 transition-colors">
+                    ❌ Cancelar
+                </button>
+            `;
+            
+            document.getElementById('editModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+            
+            // Foca no primeiro campo
+            setTimeout(() => {
+                document.getElementById('editDrinkName').focus();
+            }, 100);
+        }
+        
+        async function saveDrinkEdit() {
+            if (!currentEditElement) return;
+            
+            const card = currentEditElement;
+            const drinkId = card.getAttribute('data-drink-id');
+            
+            // Pega os novos valores
+            const newName = document.getElementById('editDrinkName').value;
+            const newDesc = document.getElementById('editDrinkDesc').value;
+            const newPrice = document.getElementById('editDrinkPrice').value;
+            const newImage = document.getElementById('editDrinkImage').value;
+            const newImageAlt = document.getElementById('editDrinkImageAlt').value;
+            
+            // Atualiza elementos localmente
+            const nameEl = card.querySelector('h3');
+            const descEl = card.querySelector('p');
+            const priceEl = card.querySelector('.price-tag');
+            const imgEl = card.querySelector('img');
+            
+            if (nameEl && newName) nameEl.textContent = newName;
+            if (descEl && newDesc) descEl.textContent = newDesc;
+            if (priceEl && newPrice) priceEl.textContent = newPrice;
+            if (imgEl && newImage) {
+                imgEl.src = newImage;
+                imgEl.alt = newImageAlt;
+            }
+            
+            // Adiciona efeito visual de sucesso
+            card.style.backgroundColor = '#dcfce7';
+            card.style.transition = 'background-color 0.5s ease';
+            setTimeout(() => {
+                card.style.backgroundColor = '';
+            }, 2000);
+            
+            // Atualiza estatísticas
+            updateEditStats();
+            
+            // Salva no Firebase
+            if (drinkId) {
+                showNotification("💾 Salvando drink completo...", "info");
+                
+                try {
+                    const docRef = doc(db, "menu", "cardapio");
+                    const docSnap = await getDoc(docRef);
+                    
+                    let menuData = docSnap.exists() ? docSnap.data() : { drinks: [] };
+                    
+                    // Encontra e atualiza o drink completo
+                    const drinkIndex = menuData.drinks.findIndex(drink => drink.id === drinkId);
+                    
+                    if (drinkIndex !== -1) {
+                        menuData.drinks[drinkIndex] = {
+                            ...menuData.drinks[drinkIndex],
+                            name: newName,
+                            description: newDesc,
+                            price: newPrice,
+                            image: {
+                                url: newImage,
+                                alt: newImageAlt
+                            }
+                        };
+                    } else {
+                        // Adiciona novo drink se não existir
+                        menuData.drinks.push({
+                            id: drinkId,
+                            name: newName,
+                            description: newDesc,
+                            price: newPrice,
+                            image: {
+                                url: newImage,
+                                alt: newImageAlt
+                            }
+                        });
+                    }
+                    
+                    menuData.lastUpdated = new Date().toISOString();
+                    await setDoc(docRef, menuData);
+                    
+                    showNotification("✅ Drink salvo com sucesso no servidor!", "success");
+                } catch (error) {
+                    console.error("Erro ao salvar drink:", error);
+                    showNotification("⚠️ Drink salvo localmente (erro no servidor)", "error");
+                }
+            }
+            
+            closeEditModal();
         }
         
         function removeEditHighlights() {
@@ -1381,6 +1568,9 @@
                 el.style.cursor = '';
                 el.title = '';
             });
+            
+            // Remove todas as canetinhas
+            document.querySelectorAll('.edit-pencil').forEach(pencil => pencil.remove());
         }
         
         function updateEditableCount() {
@@ -1453,6 +1643,7 @@
         window.saveChanges = saveChanges;
         window.loadMenuData = loadMenuData;
         window.saveEdit = saveEdit;
+        window.saveDrinkEdit = saveDrinkEdit;
         window.closeEditModal = closeEditModal;
         window.openModal = openModal;
         window.closeModal = closeModal;
@@ -1462,5 +1653,5 @@
         window.resetToOriginal = resetToOriginal;
         window.exportData = exportData;
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987ce42aa26b2755',t:'MTc1OTMzMTQ3My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987ce8dd30e32755',t:'MTc1OTMzMTY2NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
