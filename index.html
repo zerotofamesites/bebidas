@@ -661,6 +661,87 @@
         <img class="modal-content" id="modalImage">
     </div>
 
+    <!-- Botão Central Escondido -->
+    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2">
+        <button id="centralBtn" onclick="showPasswordModal()" class="opacity-10 hover:opacity-100 transition-opacity duration-300 bg-gray-800 text-white px-4 py-2 rounded-full text-sm">
+            Central
+        </button>
+    </div>
+
+    <!-- Modal de Senha -->
+    <div id="passwordModal" class="modal">
+        <div class="modal-content bg-white rounded-2xl p-8 max-w-md">
+            <h3 class="font-playfair text-2xl font-bold text-gray-800 mb-6 text-center">Acesso Restrito</h3>
+            <div class="mb-6">
+                <label class="block text-gray-700 text-sm font-medium mb-2">Digite a senha:</label>
+                <input type="password" id="passwordInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Senha">
+            </div>
+            <div class="flex gap-4">
+                <button onclick="checkPassword()" class="flex-1 bg-purple-600 text-white py-3 rounded-lg font-medium hover:bg-purple-700 transition-colors">
+                    Entrar
+                </button>
+                <button onclick="closePasswordModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-400 transition-colors">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Painel de Edição -->
+    <div id="editPanel" class="fixed top-0 right-0 w-80 h-full bg-white shadow-2xl transform translate-x-full transition-transform duration-300 z-50 overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="font-playfair text-xl font-bold text-gray-800">Modo Edição</h3>
+                <button onclick="exitEditMode()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600">
+                    Sair
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <button onclick="editMode = 'drinks'" class="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600">
+                    Editar Drinks
+                </button>
+                <button onclick="editMode = 'prices'" class="w-full bg-green-500 text-white py-3 rounded-lg font-medium hover:bg-green-600">
+                    Editar Preços
+                </button>
+                <button onclick="editMode = 'images'" class="w-full bg-purple-500 text-white py-3 rounded-lg font-medium hover:bg-purple-600">
+                    Editar Imagens
+                </button>
+                <button onclick="saveChanges()" class="w-full bg-orange-500 text-white py-3 rounded-lg font-medium hover:bg-orange-600">
+                    Salvar Alterações
+                </button>
+                <button onclick="loadMenuData()" class="w-full bg-blue-500 text-white py-3 rounded-lg font-medium hover:bg-blue-600">
+                    Sincronizar com Servidor
+                </button>
+            </div>
+            
+            <div class="mt-6 p-4 bg-yellow-50 rounded-lg">
+                <p class="text-sm text-yellow-800">
+                    <strong>Instruções:</strong><br>
+                    1. Selecione o tipo de edição<br>
+                    2. Clique nos elementos para editar<br>
+                    3. Salve as alterações
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Edição -->
+    <div id="editModal" class="modal">
+        <div class="modal-content bg-white rounded-2xl p-8 max-w-lg">
+            <h3 class="font-playfair text-xl font-bold text-gray-800 mb-4" id="editModalTitle">Editar Item</h3>
+            <div id="editModalContent"></div>
+            <div class="flex gap-4 mt-6">
+                <button onclick="saveEdit()" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700">
+                    Salvar
+                </button>
+                <button onclick="closeEditModal()" class="flex-1 bg-gray-300 text-gray-700 py-3 rounded-lg font-medium hover:bg-gray-400">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
     <footer class="gradient-bg text-white py-12">
         <div class="container mx-auto px-6 text-center">
@@ -668,7 +749,183 @@
         </div>
     </footer>
 
-    <script>
+    <script type="module">
+        // Import Firebase functions
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+        import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-analytics.js";
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCu-GkRuuT3lrOchLQK1PLKavRzbzdRNyY",
+            authDomain: "zerotofame.firebaseapp.com",
+            projectId: "zerotofame",
+            storageBucket: "zerotofame.firebasestorage.app",
+            messagingSenderId: "114453703527",
+            appId: "1:114453703527:web:c0f1a92d4785c2aef85dc2",
+            measurementId: "G-VPMY62K70T"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const analytics = getAnalytics(app);
+
+        // Variáveis globais para o sistema de edição
+        let isEditMode = false;
+        let editMode = '';
+        let currentEditElement = null;
+        let originalData = {};
+
+        // Carrega dados do Firebase ao inicializar
+        async function loadMenuData() {
+            try {
+                const docRef = doc(db, "menu", "cardapio");
+                const docSnap = await getDoc(docRef);
+                
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    applyMenuData(data);
+                    console.log("Dados carregados do Firebase");
+                } else {
+                    console.log("Nenhum dado encontrado, usando dados padrão");
+                    await saveCurrentMenuToFirebase(); // Salva dados atuais como padrão
+                }
+            } catch (error) {
+                console.error("Erro ao carregar dados:", error);
+                showNotification("❌ Erro ao carregar dados do servidor", "error");
+            }
+        }
+
+        // Aplica dados carregados do Firebase ao menu
+        function applyMenuData(data) {
+            if (data.drinks) {
+                data.drinks.forEach(drink => {
+                    const element = document.querySelector(`[data-drink-id="${drink.id}"]`);
+                    if (element) {
+                        const nameEl = element.querySelector('h3');
+                        const descEl = element.querySelector('p');
+                        const priceEl = element.querySelector('.price-tag');
+                        const imgEl = element.querySelector('img');
+                        
+                        if (nameEl && drink.name) nameEl.textContent = drink.name;
+                        if (descEl && drink.description) descEl.textContent = drink.description;
+                        if (priceEl && drink.price) priceEl.textContent = drink.price;
+                        if (imgEl && drink.image) {
+                            imgEl.src = drink.image.url;
+                            imgEl.alt = drink.image.alt;
+                        }
+                    }
+                });
+            }
+        }
+
+        // Salva dados atuais do menu no Firebase
+        async function saveCurrentMenuToFirebase() {
+            try {
+                const menuData = extractCurrentMenuData();
+                const docRef = doc(db, "menu", "cardapio");
+                await setDoc(docRef, menuData);
+                console.log("Dados salvos no Firebase");
+                return true;
+            } catch (error) {
+                console.error("Erro ao salvar dados:", error);
+                return false;
+            }
+        }
+
+        // Extrai dados atuais do menu
+        function extractCurrentMenuData() {
+            const drinks = [];
+            let drinkId = 1;
+            
+            document.querySelectorAll('.card-hover').forEach(card => {
+                const nameEl = card.querySelector('h3');
+                const descEl = card.querySelector('p');
+                const priceEl = card.querySelector('.price-tag');
+                const imgEl = card.querySelector('img');
+                
+                if (nameEl) {
+                    // Adiciona ID único se não existir
+                    if (!card.hasAttribute('data-drink-id')) {
+                        card.setAttribute('data-drink-id', drinkId);
+                    }
+                    
+                    drinks.push({
+                        id: card.getAttribute('data-drink-id') || drinkId,
+                        name: nameEl.textContent,
+                        description: descEl ? descEl.textContent : '',
+                        price: priceEl ? priceEl.textContent : '',
+                        image: imgEl ? {
+                            url: imgEl.src,
+                            alt: imgEl.alt
+                        } : null
+                    });
+                    drinkId++;
+                }
+            });
+            
+            return {
+                drinks: drinks,
+                lastUpdated: new Date().toISOString()
+            };
+        }
+
+        // Salva alteração específica no Firebase
+        async function saveEditToFirebase(elementType, elementId, newValue, additionalData = {}) {
+            try {
+                const docRef = doc(db, "menu", "cardapio");
+                const docSnap = await getDoc(docRef);
+                
+                let menuData = docSnap.exists() ? docSnap.data() : { drinks: [] };
+                
+                // Encontra e atualiza o item específico
+                const drinkIndex = menuData.drinks.findIndex(drink => drink.id === elementId);
+                
+                if (drinkIndex !== -1) {
+                    if (elementType === 'name') {
+                        menuData.drinks[drinkIndex].name = newValue;
+                    } else if (elementType === 'description') {
+                        menuData.drinks[drinkIndex].description = newValue;
+                    } else if (elementType === 'price') {
+                        menuData.drinks[drinkIndex].price = newValue;
+                    } else if (elementType === 'image') {
+                        menuData.drinks[drinkIndex].image = {
+                            url: newValue,
+                            alt: additionalData.alt || ''
+                        };
+                    }
+                    
+                    menuData.lastUpdated = new Date().toISOString();
+                    await setDoc(docRef, menuData);
+                    return true;
+                }
+                
+                return false;
+            } catch (error) {
+                console.error("Erro ao salvar alteração:", error);
+                return false;
+            }
+        }
+
+        // Função para mostrar notificações
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.innerHTML = message;
+            
+            const bgColor = type === 'success' ? 'bg-green-500' : 
+                           type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+            
+            notification.className = `fixed top-4 left-4 ${bgColor} text-white px-4 py-2 rounded-lg font-medium z-50 shadow-lg`;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 4000);
+        }
+
         function showCategory(category) {
             // Remove active class from all buttons
             document.querySelectorAll('.category-btn').forEach(btn => {
@@ -699,9 +956,23 @@
         }
 
         // Initialize with all categories visible
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             showCategory('all');
+            setupEditListeners();
+            addDrinkIds(); // Adiciona IDs únicos aos cards
+            await loadMenuData(); // Carrega dados do Firebase
         });
+
+        // Adiciona IDs únicos aos cards de drinks
+        function addDrinkIds() {
+            let drinkId = 1;
+            document.querySelectorAll('.card-hover').forEach(card => {
+                if (!card.hasAttribute('data-drink-id')) {
+                    card.setAttribute('data-drink-id', drinkId);
+                    drinkId++;
+                }
+            });
+        }
 
         // Search functionality
         function searchDrinks() {
@@ -737,6 +1008,11 @@
 
         // Funções para o modal de zoom das imagens
         function openModal(img) {
+            if (isEditMode && editMode === 'images') {
+                editImage(img);
+                return;
+            }
+            
             const modal = document.getElementById('imageModal');
             const modalImg = document.getElementById('modalImage');
             modal.style.display = 'block';
@@ -766,8 +1042,208 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeModal();
+                closePasswordModal();
+                closeEditModal();
+            }
+        });
+
+        // Sistema de autenticação e edição
+        function showPasswordModal() {
+            document.getElementById('passwordModal').style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+            document.getElementById('passwordInput').value = '';
+            document.body.style.overflow = 'auto';
+        }
+
+        function checkPassword() {
+            const password = document.getElementById('passwordInput').value;
+            if (password === 'Vic20142015@') {
+                closePasswordModal();
+                enterEditMode();
+            } else {
+                alert('Senha incorreta!');
+                document.getElementById('passwordInput').value = '';
+            }
+        }
+
+        function enterEditMode() {
+            isEditMode = true;
+            document.getElementById('editPanel').style.transform = 'translateX(0)';
+            document.body.style.paddingRight = '320px';
+            
+            // Adiciona indicador visual
+            document.body.style.border = '3px solid #f59e0b';
+            
+            // Mostra mensagem
+            const notification = document.createElement('div');
+            notification.innerHTML = '🔧 Modo de Edição Ativado';
+            notification.className = 'fixed top-4 left-4 bg-yellow-500 text-white px-4 py-2 rounded-lg font-medium z-50';
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 3000);
+        }
+
+        function exitEditMode() {
+            isEditMode = false;
+            editMode = '';
+            document.getElementById('editPanel').style.transform = 'translateX(100%)';
+            document.body.style.paddingRight = '0';
+            document.body.style.border = 'none';
+            
+            // Remove listeners de edição
+            removeEditListeners();
+        }
+
+        function setupEditListeners() {
+            // Adiciona listeners para elementos editáveis
+            document.addEventListener('click', function(e) {
+                if (!isEditMode) return;
+                
+                if (editMode === 'drinks' && (e.target.tagName === 'H3' || e.target.closest('h3'))) {
+                    e.preventDefault();
+                    editDrinkName(e.target.tagName === 'H3' ? e.target : e.target.closest('h3'));
+                } else if (editMode === 'drinks' && (e.target.tagName === 'P' || e.target.closest('p'))) {
+                    e.preventDefault();
+                    editDescription(e.target.tagName === 'P' ? e.target : e.target.closest('p'));
+                } else if (editMode === 'prices' && e.target.classList.contains('price-tag')) {
+                    e.preventDefault();
+                    editPrice(e.target);
+                }
+            });
+        }
+
+        function removeEditListeners() {
+            // Remove visual indicators
+            document.querySelectorAll('.edit-highlight').forEach(el => {
+                el.classList.remove('edit-highlight');
+            });
+        }
+
+        function editDrinkName(element) {
+            currentEditElement = element;
+            document.getElementById('editModalTitle').textContent = 'Editar Nome do Drink';
+            document.getElementById('editModalContent').innerHTML = `
+                <label class="block text-gray-700 text-sm font-medium mb-2">Nome do Drink:</label>
+                <input type="text" id="editInput" value="${element.textContent}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+            `;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function editDescription(element) {
+            currentEditElement = element;
+            document.getElementById('editModalTitle').textContent = 'Editar Descrição';
+            document.getElementById('editModalContent').innerHTML = `
+                <label class="block text-gray-700 text-sm font-medium mb-2">Descrição:</label>
+                <textarea id="editInput" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 h-24">${element.textContent}</textarea>
+            `;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function editPrice(element) {
+            currentEditElement = element;
+            document.getElementById('editModalTitle').textContent = 'Editar Preço';
+            document.getElementById('editModalContent').innerHTML = `
+                <label class="block text-gray-700 text-sm font-medium mb-2">Preço:</label>
+                <input type="text" id="editInput" value="${element.textContent}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="R$ 00,00">
+            `;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        function editImage(element) {
+            currentEditElement = element;
+            document.getElementById('editModalTitle').textContent = 'Editar Imagem';
+            document.getElementById('editModalContent').innerHTML = `
+                <label class="block text-gray-700 text-sm font-medium mb-2">URL da Imagem:</label>
+                <input type="url" id="editInput" value="${element.src}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="https://...">
+                <label class="block text-gray-700 text-sm font-medium mb-2 mt-4">Texto Alternativo:</label>
+                <input type="text" id="editAltInput" value="${element.alt}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+            `;
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        async function saveEdit() {
+            if (!currentEditElement) return;
+            
+            const newValue = document.getElementById('editInput').value;
+            const card = currentEditElement.closest('.card-hover');
+            const drinkId = card ? card.getAttribute('data-drink-id') : null;
+            
+            if (!drinkId) {
+                showNotification("❌ Erro: ID do item não encontrado", "error");
+                return;
+            }
+            
+            let elementType = '';
+            let additionalData = {};
+            
+            // Determina o tipo de elemento e salva localmente
+            if (editMode === 'images') {
+                const newAlt = document.getElementById('editAltInput').value;
+                currentEditElement.src = newValue;
+                currentEditElement.alt = newAlt;
+                elementType = 'image';
+                additionalData.alt = newAlt;
+            } else if (currentEditElement.tagName === 'H3') {
+                currentEditElement.textContent = newValue;
+                elementType = 'name';
+            } else if (currentEditElement.tagName === 'P') {
+                currentEditElement.textContent = newValue;
+                elementType = 'description';
+            } else if (currentEditElement.classList.contains('price-tag')) {
+                currentEditElement.textContent = newValue;
+                elementType = 'price';
+            }
+            
+            // Adiciona indicador de alteração
+            currentEditElement.style.backgroundColor = '#fef3c7';
+            setTimeout(() => {
+                currentEditElement.style.backgroundColor = '';
+            }, 2000);
+            
+            // Salva no Firebase
+            showNotification("💾 Salvando alteração...", "info");
+            const success = await saveEditToFirebase(elementType, drinkId, newValue, additionalData);
+            
+            if (success) {
+                showNotification("✅ Alteração salva no servidor!", "success");
+            } else {
+                showNotification("❌ Erro ao salvar no servidor", "error");
+            }
+            
+            closeEditModal();
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+            currentEditElement = null;
+        }
+
+        async function saveChanges() {
+            showNotification("💾 Salvando todo o cardápio...", "info");
+            
+            const success = await saveCurrentMenuToFirebase();
+            
+            if (success) {
+                showNotification("✅ Cardápio completo salvo no servidor!", "success");
+            } else {
+                showNotification("❌ Erro ao salvar cardápio completo", "error");
+            }
+        }
+
+        // Permite Enter para confirmar senha
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && document.getElementById('passwordModal').style.display === 'block') {
+                checkPassword();
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ea70f381904f83',t:'MTc1Nzc5NTgzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'987cb79ce6b62755',t:'MTc1OTMyOTY0OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
